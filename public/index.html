@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <!-- Chart.js for retirement charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="scanlines"></div>
@@ -28,241 +30,437 @@
     </div>
   </header>
 
+  <!-- ── MAIN NAV TABS ── -->
+  <nav class="main-tabs">
+    <button class="main-tab active" id="mainTabTracker" onclick="switchMainTab('tracker')">// TRACKER</button>
+    <button class="main-tab" id="mainTabRetirement" onclick="switchMainTab('retirement')">// RETIRE</button>
+  </nav>
+
   <main class="main">
 
-    <!-- Summary Cards -->
-    <section class="summary-grid">
-      <div class="card card--accent">
-        <div class="card-label">TOTAL ₿ ACCUMULATED</div>
-        <div class="card-value" id="statTotalBTC">0.00000000</div>
-        <div class="card-sub">BTC</div>
-      </div>
-      <div class="card">
-        <div class="card-label">TOTAL INVESTED</div>
-        <div class="card-value" id="statTotalTHB">฿0</div>
-        <div class="card-sub">THB</div>
-      </div>
-      <div class="card">
-        <div class="card-label">AVG BUY PRICE</div>
-        <div class="card-value" id="statAvgPrice">฿0</div>
-        <div class="card-sub">THB/BTC</div>
-      </div>
-      <div class="card card--pnl" id="cardPnl">
-        <div class="card-label">UNREALIZED P&amp;L</div>
-        <div class="card-value" id="statPnl">฿0</div>
-        <div class="card-pct" id="statPnlPct">0.00%</div>
-      </div>
-      <div class="card">
-        <div class="card-label">CURRENT VALUE</div>
-        <div class="card-value" id="statCurrentVal">฿0</div>
-        <div class="card-sub">THB</div>
-      </div>
-      <div class="card">
-        <div class="card-label">DCA ENTRIES</div>
-        <div class="card-value" id="statEntries">0</div>
-        <div class="card-sub">ORDERS</div>
-      </div>
-    </section>
+    <!-- ════════════════════════════════════════
+         TRACKER PANEL (original content)
+    ════════════════════════════════════════ -->
+    <div id="panelTracker">
 
-    <!-- Stack Goal -->
-    <section class="goal-panel" id="goalPanel">
-      <div class="goal-header">
-        <div class="goal-title-row">
-          <span class="panel-title">// STACK GOAL</span>
-          <div class="goal-header-right">
-            <span class="goal-eta" id="goalETA"></span>
-            <button class="btn-goal-edit" id="btnEditGoal">⚙ SET GOAL</button>
-          </div>
+      <!-- Summary Cards -->
+      <section class="summary-grid">
+        <div class="card card--accent">
+          <div class="card-label">TOTAL ₿ ACCUMULATED</div>
+          <div class="card-value" id="statTotalBTC">0.00000000</div>
+          <div class="card-sub">BTC</div>
         </div>
-        <div class="goal-form hidden" id="goalForm">
-          <div class="goal-form-inner">
-            <div class="goal-input-group">
-              <label class="form-label">TARGET BTC</label>
-              <div class="input-wrap">
-                <span class="input-prefix">₿</span>
-                <input type="number" id="goalInput" class="form-input" placeholder="0.10000000" min="0" step="0.00000001" />
-              </div>
-            </div>
-            <div class="goal-input-group">
-              <label class="form-label">DCA AMOUNT / MONTH (THB)</label>
-              <div class="input-wrap">
-                <span class="input-prefix">฿</span>
-                <input type="number" id="goalMonthlyTHB" class="form-input" placeholder="1000" min="0" step="1" />
-              </div>
-            </div>
-            <div class="goal-form-actions">
-              <button class="btn-goal-save" id="btnSaveGoal">SAVE</button>
-              <button class="btn-goal-cancel" id="btnCancelGoal">CANCEL</button>
-            </div>
-          </div>
+        <div class="card">
+          <div class="card-label">TOTAL INVESTED</div>
+          <div class="card-value" id="statTotalTHB">฿0</div>
+          <div class="card-sub">THB</div>
         </div>
-      </div>
-      <div class="goal-body" id="goalBody">
-        <div class="goal-no-target" id="goalNoTarget">
-          <span>No goal set — click</span> <strong>⚙ SET GOAL</strong> <span>to get started</span>
+        <div class="card">
+          <div class="card-label">AVG BUY PRICE</div>
+          <div class="card-value" id="statAvgPrice">฿0</div>
+          <div class="card-sub">THB/BTC</div>
         </div>
-        <div class="goal-progress-wrap hidden" id="goalProgressWrap">
-          <div class="goal-stats">
-            <div class="goal-stat">
-              <div class="goal-stat-label">STACKED</div>
-              <div class="goal-stat-value" id="goalStacked">0.00000000</div>
-              <div class="goal-stat-sub">BTC</div>
-            </div>
-            <div class="goal-stat goal-stat--center">
-              <div class="goal-pct" id="goalPct">0%</div>
-              <div class="goal-stat-label">COMPLETE</div>
-            </div>
-            <div class="goal-stat goal-stat--right">
-              <div class="goal-stat-label">TARGET</div>
-              <div class="goal-stat-value" id="goalTarget">0.00000000</div>
-              <div class="goal-stat-sub">BTC</div>
-            </div>
-          </div>
-          <div class="goal-bar-track">
-            <div class="goal-bar-fill" id="goalBarFill"></div>
-            <div class="goal-bar-glow" id="goalBarGlow"></div>
-          </div>
-          <div class="goal-remaining-row">
-            <span class="goal-remaining-label">REMAINING</span>
-            <span class="goal-remaining-val" id="goalRemaining">—</span>
-            <span class="goal-remaining-sep">·</span>
-            <span class="goal-remaining-label" id="goalMonthsLabel"></span>
-          </div>
+        <div class="card card--pnl" id="cardPnl">
+          <div class="card-label">UNREALIZED P&amp;L</div>
+          <div class="card-value" id="statPnl">฿0</div>
+          <div class="card-pct" id="statPnlPct">0.00%</div>
         </div>
-      </div>
-    </section>
-
-    <div class="content-grid">
-
-      <!-- Add Entry Panel -->
-      <section class="panel panel--add">
-        <div class="panel-header">
-          <span class="panel-title">// NEW DCA ORDER</span>
+        <div class="card">
+          <div class="card-label">CURRENT VALUE</div>
+          <div class="card-value" id="statCurrentVal">฿0</div>
+          <div class="card-sub">THB</div>
         </div>
-
-        <!-- Mode Tabs -->
-        <div class="mode-tabs">
-          <button class="mode-tab active" data-mode="thb" id="tabTHB">
-            <span class="tab-icon">฿</span> THB → BTC
-          </button>
-          <button class="mode-tab" data-mode="btc" id="tabBTC">
-            <span class="tab-icon">₿</span> BTC AMOUNT
-          </button>
-        </div>
-
-        <div class="form-body">
-          <div class="form-group">
-            <label class="form-label">DATE</label>
-            <input type="date" id="inputDate" class="form-input" />
-          </div>
-
-          <!-- ── MODE 1: THB + Fee + Price ── -->
-          <div id="modeThbFields">
-            <div class="form-group">
-              <label class="form-label">AMOUNT SPENT (THB)</label>
-              <div class="input-wrap">
-                <span class="input-prefix">฿</span>
-                <input type="number" id="inputTHB" class="form-input" placeholder="1000" min="0" step="1" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">FEE (%) <span class="label-hint">Bitkub ≈ 0.25%</span></label>
-              <div class="input-wrap">
-                <input type="number" id="inputFee" class="form-input" placeholder="0.25" min="0" max="10" step="0.01" />
-                <span class="input-suffix">%</span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">BTC PRICE (THB)</label>
-              <div class="input-wrap">
-                <span class="input-prefix">฿</span>
-                <input type="number" id="inputBTCPrice" class="form-input" placeholder="auto-fill" min="1" />
-                <button class="btn-auto" id="btnAutoPrice">⟳ LIVE</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">SUMMARY</label>
-              <div class="calc-summary" id="calcSummaryThb">
-                <div class="calc-row"><span>Net THB</span><span id="previewNetTHB">—</span></div>
-                <div class="calc-row"><span>Fee paid</span><span id="previewFeeTHB">—</span></div>
-                <div class="calc-row calc-row--result"><span>BTC received</span><span id="previewBTC">—</span></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── MODE 2: BTC amount + Price ── -->
-          <div id="modeBtcFields" class="hidden">
-            <div class="form-group">
-              <label class="form-label">BTC AMOUNT RECEIVED</label>
-              <div class="input-wrap">
-                <span class="input-prefix">₿</span>
-                <input type="number" id="inputBTCAmount" class="form-input" placeholder="0.00100000" min="0" step="0.00000001" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">BTC PRICE (THB)</label>
-              <div class="input-wrap">
-                <span class="input-prefix">฿</span>
-                <input type="number" id="inputBTCPrice2" class="form-input" placeholder="auto-fill" min="1" />
-                <button class="btn-auto" id="btnAutoPrice2">⟳ LIVE</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">FEE PAID (THB) <span class="label-hint">optional</span></label>
-              <div class="input-wrap">
-                <span class="input-prefix">฿</span>
-                <input type="number" id="inputFee2" class="form-input" placeholder="0" min="0" step="1" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">SUMMARY</label>
-              <div class="calc-summary" id="calcSummaryBtc">
-                <div class="calc-row"><span>THB spent</span><span id="previewTHBfromBTC">—</span></div>
-                <div class="calc-row"><span>Fee paid</span><span id="previewFee2">—</span></div>
-                <div class="calc-row calc-row--result"><span>BTC received</span><span id="previewBTC2">—</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">NOTE (optional)</label>
-            <input type="text" id="inputNote" class="form-input" placeholder="monthly buy, salary..." maxlength="100" />
-          </div>
-
-          <button class="btn-submit" id="btnSubmit">
-            <span class="btn-icon">+</span> LOG DCA ORDER
-          </button>
+        <div class="card">
+          <div class="card-label">DCA ENTRIES</div>
+          <div class="card-value" id="statEntries">0</div>
+          <div class="card-sub">ORDERS</div>
         </div>
       </section>
 
-      <!-- History Table -->
-      <section class="panel panel--history">
-        <div class="panel-header">
-          <span class="panel-title">// DCA HISTORY</span>
-          <span class="entry-count" id="historyCount">0 records</span>
+      <!-- Stack Goal -->
+      <section class="goal-panel" id="goalPanel">
+        <div class="goal-header">
+          <div class="goal-title-row">
+            <span class="panel-title">// STACK GOAL</span>
+            <div class="goal-header-right">
+              <span class="goal-eta" id="goalETA"></span>
+              <button class="btn-goal-edit" id="btnEditGoal">⚙ SET GOAL</button>
+            </div>
+          </div>
+          <div class="goal-form hidden" id="goalForm">
+            <div class="goal-form-inner">
+              <div class="goal-input-group">
+                <label class="form-label">TARGET BTC</label>
+                <div class="input-wrap">
+                  <span class="input-prefix">₿</span>
+                  <input type="number" id="goalInput" class="form-input" placeholder="0.10000000" min="0" step="0.00000001" />
+                </div>
+              </div>
+              <div class="goal-input-group">
+                <label class="form-label">DCA AMOUNT / MONTH (THB)</label>
+                <div class="input-wrap">
+                  <span class="input-prefix">฿</span>
+                  <input type="number" id="goalMonthlyTHB" class="form-input" placeholder="1000" min="0" step="1" />
+                </div>
+              </div>
+              <div class="goal-form-actions">
+                <button class="btn-goal-save" id="btnSaveGoal">SAVE</button>
+                <button class="btn-goal-cancel" id="btnCancelGoal">CANCEL</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table class="dca-table">
-            <thead>
-              <tr>
-                <th>DATE</th>
-                <th>THB SPENT</th>
-                <th>FEE</th>
-                <th>BUY PRICE</th>
-                <th>BTC BOUGHT</th>
-                <th>NOTE</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
+        <div class="goal-body" id="goalBody">
+          <div class="goal-no-target" id="goalNoTarget">
+            <span>No goal set — click</span> <strong>⚙ SET GOAL</strong> <span>to get started</span>
+          </div>
+          <div class="goal-progress-wrap hidden" id="goalProgressWrap">
+            <div class="goal-stats">
+              <div class="goal-stat">
+                <div class="goal-stat-label">STACKED</div>
+                <div class="goal-stat-value" id="goalStacked">0.00000000</div>
+                <div class="goal-stat-sub">BTC</div>
+              </div>
+              <div class="goal-stat goal-stat--center">
+                <div class="goal-pct" id="goalPct">0%</div>
+                <div class="goal-stat-label">COMPLETE</div>
+              </div>
+              <div class="goal-stat goal-stat--right">
+                <div class="goal-stat-label">TARGET</div>
+                <div class="goal-stat-value" id="goalTarget">0.00000000</div>
+                <div class="goal-stat-sub">BTC</div>
+              </div>
+            </div>
+            <div class="goal-bar-track">
+              <div class="goal-bar-fill" id="goalBarFill"></div>
+              <div class="goal-bar-glow" id="goalBarGlow"></div>
+            </div>
+            <div class="goal-remaining-row">
+              <span class="goal-remaining-label">REMAINING</span>
+              <span class="goal-remaining-val" id="goalRemaining">—</span>
+              <span class="goal-remaining-sep">·</span>
+              <span class="goal-remaining-label" id="goalMonthsLabel"></span>
+            </div>
+          </div>
         </div>
       </section>
 
-    </div>
+      <div class="content-grid">
+
+        <!-- Add Entry Panel -->
+        <section class="panel panel--add">
+          <div class="panel-header">
+            <span class="panel-title">// NEW DCA ORDER</span>
+          </div>
+
+          <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="thb" id="tabTHB">
+              <span class="tab-icon">฿</span> THB → BTC
+            </button>
+            <button class="mode-tab" data-mode="btc" id="tabBTC">
+              <span class="tab-icon">₿</span> BTC AMOUNT
+            </button>
+          </div>
+
+          <div class="form-body">
+            <div class="form-group">
+              <label class="form-label">DATE</label>
+              <input type="date" id="inputDate" class="form-input" />
+            </div>
+
+            <div id="modeThbFields">
+              <div class="form-group">
+                <label class="form-label">AMOUNT SPENT (THB)</label>
+                <div class="input-wrap">
+                  <span class="input-prefix">฿</span>
+                  <input type="number" id="inputTHB" class="form-input" placeholder="1000" min="0" step="1" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">FEE (%) <span class="label-hint">Bitkub ≈ 0.25%</span></label>
+                <div class="input-wrap">
+                  <input type="number" id="inputFee" class="form-input" value="0.25" min="0" max="10" step="0.01" />
+                  <span class="input-suffix">%</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">BTC PRICE (THB)</label>
+                <div class="input-wrap">
+                  <span class="input-prefix">฿</span>
+                  <input type="number" id="inputBTCPrice" class="form-input" placeholder="auto-fill" min="1" />
+                  <button class="btn-auto" id="btnAutoPrice">⟳ LIVE</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">SUMMARY</label>
+                <div class="calc-summary" id="calcSummaryThb">
+                  <div class="calc-row"><span>Net THB</span><span id="previewNetTHB">—</span></div>
+                  <div class="calc-row"><span>Fee paid</span><span id="previewFeeTHB">—</span></div>
+                  <div class="calc-row calc-row--result"><span>BTC received</span><span id="previewBTC">—</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div id="modeBtcFields" class="hidden">
+              <div class="form-group">
+                <label class="form-label">BTC AMOUNT RECEIVED</label>
+                <div class="input-wrap">
+                  <span class="input-prefix">₿</span>
+                  <input type="number" id="inputBTCAmount" class="form-input" placeholder="0.00100000" min="0" step="0.00000001" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">BTC PRICE (THB)</label>
+                <div class="input-wrap">
+                  <span class="input-prefix">฿</span>
+                  <input type="number" id="inputBTCPrice2" class="form-input" placeholder="auto-fill" min="1" />
+                  <button class="btn-auto" id="btnAutoPrice2">⟳ LIVE</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">FEE PAID (THB) <span class="label-hint">optional</span></label>
+                <div class="input-wrap">
+                  <span class="input-prefix">฿</span>
+                  <input type="number" id="inputFee2" class="form-input" placeholder="0" min="0" step="1" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">SUMMARY</label>
+                <div class="calc-summary" id="calcSummaryBtc">
+                  <div class="calc-row"><span>THB spent</span><span id="previewTHBfromBTC">—</span></div>
+                  <div class="calc-row"><span>Fee paid</span><span id="previewFee2">—</span></div>
+                  <div class="calc-row calc-row--result"><span>BTC received</span><span id="previewBTC2">—</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">NOTE (optional)</label>
+              <input type="text" id="inputNote" class="form-input" placeholder="monthly buy, salary..." maxlength="100" />
+            </div>
+
+            <button class="btn-submit" id="btnSubmit">
+              <span class="btn-icon">+</span> LOG DCA ORDER
+            </button>
+          </div>
+        </section>
+
+        <!-- History Table -->
+        <section class="panel panel--history">
+          <div class="panel-header">
+            <span class="panel-title">// DCA HISTORY</span>
+            <span class="entry-count" id="historyCount">0 records</span>
+          </div>
+          <div class="table-wrap">
+            <table class="dca-table">
+              <thead>
+                <tr>
+                  <th>DATE</th>
+                  <th>THB SPENT</th>
+                  <th>FEE</th>
+                  <th>BUY PRICE</th>
+                  <th>BTC BOUGHT</th>
+                  <th>NOTE</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </div><!-- /panelTracker -->
+
+
+    <!-- ════════════════════════════════════════
+         RETIREMENT PANEL
+    ════════════════════════════════════════ -->
+    <div id="panelRetirement" style="display:none;">
+
+      <div class="retirement-grid">
+
+        <!-- ── LEFT: inputs ── -->
+        <div class="ret-card ret-inputs">
+          <div class="ret-card-title"><span class="ret-icon">⚙</span> RETIREMENT PARAMETERS</div>
+
+          <div class="ret-field-group">
+            <label class="ret-label">CURRENT BTC HELD <span class="ret-auto-badge">AUTO</span></label>
+            <div class="ret-readonly-row">
+              <span id="ret-current-btc">—</span>
+              <span class="ret-unit">BTC</span>
+            </div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label">AVG BUY PRICE <span class="ret-auto-badge">AUTO</span></label>
+            <div class="ret-readonly-row">
+              <span id="ret-avg-price">—</span>
+              <span class="ret-unit">THB</span>
+            </div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label">CURRENT BTC PRICE <span class="ret-auto-badge">LIVE</span></label>
+            <div class="ret-readonly-row">
+              <span id="ret-live-price">—</span>
+              <span class="ret-unit">THB</span>
+            </div>
+          </div>
+
+          <hr class="ret-divider">
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-age-now">CURRENT AGE</label>
+            <div class="ret-input-row">
+              <input id="ret-age-now" class="ret-input" type="number" min="10" max="80" value="30">
+              <span class="ret-unit">yrs</span>
+            </div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-age-retire">TARGET RETIREMENT AGE</label>
+            <div class="ret-input-row">
+              <input id="ret-age-retire" class="ret-input" type="number" min="30" max="99" value="50">
+              <span class="ret-unit">yrs</span>
+            </div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-monthly-dca">MONTHLY DCA <span class="ret-auto-badge">AUTO</span></label>
+            <div class="ret-input-row">
+              <input id="ret-monthly-dca" class="ret-input" type="number" min="0" value="0">
+              <span class="ret-unit">THB</span>
+            </div>
+            <div class="ret-hint">Estimated from last 3 months of entries. You can override.</div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-dca-increase">ANNUAL DCA INCREASE</label>
+            <div class="ret-input-row">
+              <input id="ret-dca-increase" class="ret-input" type="number" min="0" max="200" value="10">
+              <span class="ret-unit">%</span>
+            </div>
+            <div class="ret-hint">Increase monthly DCA by this % each year. e.g. 10% = salary raise reinvested.</div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-withdraw">MONTHLY WITHDRAWAL AT RETIREMENT</label>
+            <div class="ret-input-row">
+              <input id="ret-withdraw" class="ret-input" type="number" min="0" value="30000">
+              <span class="ret-unit">THB</span>
+            </div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-btc-return">EXPECTED ANNUAL BTC RETURN</label>
+            <div class="ret-input-row">
+              <input id="ret-btc-return" class="ret-input" type="number" min="-100" max="10000" value="40">
+              <span class="ret-unit">%</span>
+            </div>
+            <div class="ret-hint">Historical 4yr CAGR ≈ 50–100%. Conservative: 20–40%.</div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-volatility">ANNUAL VOLATILITY (σ)</label>
+            <div class="ret-input-row">
+              <input id="ret-volatility" class="ret-input" type="number" min="0" max="500" value="70">
+              <span class="ret-unit">%</span>
+            </div>
+            <div class="ret-hint">BTC historical σ ≈ 60–80%. Used in Monte Carlo simulation.</div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-inflation">ANNUAL INFLATION (THB)</label>
+            <div class="ret-input-row">
+              <input id="ret-inflation" class="ret-input" type="number" min="0" max="50" value="3">
+              <span class="ret-unit">%</span>
+            </div>
+          </div>
+
+          <div class="ret-field-group">
+            <label class="ret-label" for="ret-lifespan">EXPECTED LIFESPAN</label>
+            <div class="ret-input-row">
+              <input id="ret-lifespan" class="ret-input" type="number" min="50" max="120" value="85">
+              <span class="ret-unit">yrs</span>
+            </div>
+          </div>
+
+          <button id="ret-calculate-btn" class="ret-btn-calc" onclick="retirementCalculate()">
+            ▶ RUN SIMULATION
+          </button>
+        </div>
+
+        <!-- ── RIGHT: results ── -->
+        <div class="ret-results-col">
+
+          <div class="ret-summary-row">
+            <div class="ret-stat-card">
+              <div class="ret-stat-label">BTC AT RETIREMENT</div>
+              <div class="ret-stat-value" id="ret-out-btc">—</div>
+              <div class="ret-stat-sub">base case</div>
+            </div>
+            <div class="ret-stat-card">
+              <div class="ret-stat-label">PORTFOLIO VALUE</div>
+              <div class="ret-stat-value" id="ret-out-value">—</div>
+              <div class="ret-stat-sub">THB · base case</div>
+            </div>
+            <div class="ret-stat-card">
+              <div class="ret-stat-label">RUNWAY</div>
+              <div class="ret-stat-value" id="ret-out-runway">—</div>
+              <div class="ret-stat-sub">years of withdrawals</div>
+            </div>
+            <div class="ret-stat-card">
+              <div class="ret-stat-label">SURVIVAL PROB</div>
+              <div class="ret-stat-value" id="ret-out-prob">—</div>
+              <div class="ret-stat-sub">Monte Carlo · 1,000 paths</div>
+            </div>
+          </div>
+
+          <div class="ret-card ret-chart-card">
+            <div class="ret-card-title"><span class="ret-icon">📈</span> BTC ACCUMULATION OVER TIME</div>
+            <canvas id="ret-chart-accumulation" height="220"></canvas>
+          </div>
+
+          <div class="ret-card ret-chart-card">
+            <div class="ret-card-title"><span class="ret-icon">🎲</span> MONTE CARLO — PORTFOLIO VALUE PATHS</div>
+            <div class="ret-mc-legend">
+              <span class="ret-mc-dot" style="background:#00f5ff"></span>90th pct
+              <span class="ret-mc-dot" style="background:#f5e642"></span>median
+              <span class="ret-mc-dot" style="background:#ff3a5c"></span>10th pct
+            </div>
+            <canvas id="ret-chart-monte-carlo" height="220"></canvas>
+          </div>
+
+          <div class="ret-card ret-chart-card">
+            <div class="ret-card-title"><span class="ret-icon">💸</span> WITHDRAWAL PHASE — BTC DRAWDOWN</div>
+            <canvas id="ret-chart-withdrawal" height="200"></canvas>
+          </div>
+
+          <div class="ret-card" id="ret-scenario-table" style="display:none;">
+            <div class="ret-card-title"><span class="ret-icon">⚡</span> SCENARIO COMPARISON</div>
+            <table class="ret-table">
+              <thead>
+                <tr>
+                  <th>Scenario</th>
+                  <th>Annual Return</th>
+                  <th>BTC @ Retire</th>
+                  <th>Portfolio (THB)</th>
+                  <th>Runway</th>
+                </tr>
+              </thead>
+              <tbody id="ret-scenario-tbody"></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /panelRetirement -->
+
   </main>
 
-  <!-- Edit Modal -->
+  <!-- Edit Modal (unchanged) -->
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <div class="modal-header">
@@ -271,7 +469,6 @@
       </div>
       <div class="modal-body">
 
-        <!-- Edit Mode Tabs -->
         <div class="mode-tabs">
           <button class="mode-tab active" data-mode="thb" id="editTabTHB">฿ THB → BTC</button>
           <button class="mode-tab" data-mode="btc" id="editTabBTC">₿ BTC AMOUNT</button>
@@ -282,7 +479,6 @@
           <input type="date" id="editDate" class="form-input" />
         </div>
 
-        <!-- Edit Mode 1 -->
         <div id="editModeThbFields">
           <div class="form-group">
             <label class="form-label">AMOUNT SPENT (THB)</label>
@@ -314,7 +510,6 @@
           </div>
         </div>
 
-        <!-- Edit Mode 2 -->
         <div id="editModeBtcFields" class="hidden">
           <div class="form-group">
             <label class="form-label">BTC AMOUNT RECEIVED</label>
@@ -361,5 +556,36 @@
 
   <div class="toast" id="toast"></div>
   <script src="app.js"></script>
+  <script src="retirement.js"></script>
+  <script>
+    // ── Tab switcher ──────────────────────────────────────────────
+    let retirementInitialized = false;
+
+    function switchMainTab(tab) {
+      const isTracker = tab === 'tracker';
+      document.getElementById('panelTracker').style.display    = isTracker ? '' : 'none';
+      document.getElementById('panelRetirement').style.display = isTracker ? 'none' : '';
+      document.getElementById('mainTabTracker').classList.toggle('active', isTracker);
+      document.getElementById('mainTabRetirement').classList.toggle('active', !isTracker);
+
+      // lazy-init retirement data on first open
+      if (!isTracker && !retirementInitialized) {
+        retirementInitialized = true;
+        retirementInit();
+      }
+    }
+
+    // ── Pipe live BTC price → retirement tab via MutationObserver ─
+    // This watches the existing #livePrice element so app.js needs
+    // zero changes.
+    const _livePriceEl = document.getElementById('livePrice');
+    if (_livePriceEl) {
+      new MutationObserver(() => {
+        const raw   = _livePriceEl.textContent.replace(/[^0-9.]/g, '');
+        const price = parseFloat(raw);
+        if (!isNaN(price) && price > 0) retirementUpdateLivePrice(price);
+      }).observe(_livePriceEl, { childList: true, subtree: true, characterData: true });
+    }
+  </script>
 </body>
 </html>

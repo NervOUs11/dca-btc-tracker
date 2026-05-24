@@ -86,7 +86,7 @@ body {
 /* ── Main ────────────────────────────────────────────── */
 .main {
   position: relative; z-index: 5;
-  padding: 2rem; max-width: 1400px; margin: 0 auto;
+  padding: 1rem; max-width: 1400px; margin: 0 auto;
   display: flex; flex-direction: column; gap: 1.5rem;
 }
 
@@ -95,6 +95,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1rem;
+  margin-bottom: 10px;
 }
 .card {
   background: var(--panel); border: 1px solid rgba(0,245,255,0.15);
@@ -230,13 +231,18 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7) hue-
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Table ───────────────────────────────────────────── */
-.table-wrap { overflow-x: auto; }
+.table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 540px;
+}
 .dca-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.78rem; }
 .dca-table th {
   text-align: left; padding: 10px 12px;
   font-size: 0.62rem; letter-spacing: 0.15em;
   color: var(--text-dim); border-bottom: 1px solid var(--panel-border);
   background: rgba(0,245,255,0.03); white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
 }
 .dca-table td { padding: 9px 12px; border-bottom: 1px solid rgba(0,245,255,0.06); vertical-align: middle; white-space: nowrap; }
 .dca-table tbody tr:hover { background: rgba(0,245,255,0.04); }
@@ -344,6 +350,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7) hue-
   border: 1px solid rgba(255,0,229,0.25);
   border-radius: 6px; overflow: hidden;
   position: relative;
+  margin-bottom: 10px;
 }
 .goal-panel::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
@@ -455,3 +462,355 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7) hue-
 .goal-remaining-label { color: var(--text-dim); letter-spacing: 0.15em; }
 .goal-remaining-val   { color: var(--yellow); font-size: 0.8rem; }
 .goal-remaining-sep   { color: var(--text-dim); }
+
+/* ================================================================
+   RETIREMENT TAB — append to public/style.css
+   Uses the same CSS variables as the rest of the project.
+   ================================================================ */
+
+/* ── main nav tabs ───────────────────────────────────────────── */
+.main-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--panel-border);
+  margin: 0 0 0 0;
+  padding: 0 1rem;
+  position: relative;
+  z-index: 5;
+  background: linear-gradient(180deg, rgba(0,245,255,0.03) 0%, transparent 100%);
+}
+
+.main-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, text-shadow 0.2s;
+  margin-bottom: -1px;
+}
+
+.main-tab:hover {
+  color: var(--text);
+  background: rgba(0,245,255,0.03);
+}
+
+.main-tab.active {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+}
+
+/* ── layout ─────────────────────────────────────────────────── */
+.retirement-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  align-items: start;
+  padding: 24px 0;
+}
+
+@media (max-width: 900px) {
+  .retirement-grid { grid-template-columns: 1fr; }
+}
+
+.ret-results-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── cards ───────────────────────────────────────────────────── */
+.ret-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ret-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.6;
+}
+
+.ret-card-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--cyan);
+  letter-spacing: 0.15em;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ret-icon { font-size: 1rem; }
+
+/* ── form fields ─────────────────────────────────────────────── */
+.ret-field-group { margin-bottom: 14px; }
+
+.ret-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.2em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.ret-auto-badge {
+  font-size: 0.55rem;
+  background: rgba(0,245,255,0.08);
+  color: var(--cyan);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 2px;
+  padding: 1px 5px;
+  letter-spacing: 0.08em;
+}
+
+.ret-input-row,
+.ret-readonly-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ret-input {
+  flex: 1;
+  background: rgba(0,245,255,0.04);
+  border: 1px solid rgba(0,245,255,0.2);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.ret-input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(0,245,255,0.1);
+}
+
+.ret-input::-webkit-inner-spin-button { opacity: 0.3; }
+
+.ret-readonly-row span:first-child {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+}
+
+.ret-unit {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.ret-hint {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  opacity: 0.6;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.ret-divider {
+  border: none;
+  border-top: 1px solid var(--panel-border);
+  margin: 16px 0;
+}
+
+/* ── calculate button ────────────────────────────────────────── */
+.ret-btn-calc {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 0;
+  background: linear-gradient(135deg, rgba(0,245,255,0.12), rgba(255,0,229,0.08));
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: box-shadow 0.2s, background 0.2s;
+  text-shadow: var(--glow-cyan);
+  box-shadow: 0 0 12px rgba(0,245,255,0.15);
+}
+
+.ret-btn-calc:hover {
+  box-shadow: var(--glow-cyan);
+}
+
+.ret-btn-calc:active { transform: scale(0.98); }
+
+.ret-btn-calc.running {
+  color: var(--yellow);
+  border-color: var(--yellow);
+  text-shadow: none;
+  animation: ret-pulse 0.8s infinite;
+}
+
+@keyframes ret-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(245,230,66,0.3); }
+  50%       { box-shadow: 0 0 22px rgba(245,230,66,0.6); }
+}
+
+/* ── summary stat cards ──────────────────────────────────────── */
+.ret-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .ret-summary-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+.ret-stat-card {
+  background: var(--panel);
+  border: 1px solid rgba(0,245,255,0.15);
+  border-radius: 6px;
+  padding: 14px 12px 12px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.ret-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.4;
+}
+
+.ret-stat-card.highlight {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 16px rgba(0,245,255,0.12);
+}
+
+.ret-stat-card.highlight::before { opacity: 0.8; }
+
+.ret-stat-card.danger {
+  border-color: rgba(255,58,92,0.4);
+  box-shadow: 0 0 12px rgba(255,58,92,0.1);
+}
+
+.ret-stat-card.danger::before {
+  background: linear-gradient(90deg, transparent, var(--red), transparent);
+  opacity: 0.6;
+}
+
+.ret-stat-card.warn {
+  border-color: rgba(245,230,66,0.4);
+  box-shadow: 0 0 12px rgba(245,230,66,0.1);
+}
+
+.ret-stat-card.warn::before {
+  background: linear-gradient(90deg, transparent, var(--yellow), transparent);
+  opacity: 0.6;
+}
+
+.ret-stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  letter-spacing: 0.2em;
+  margin-bottom: 6px;
+}
+
+.ret-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+  word-break: break-all;
+}
+
+.ret-stat-value.good { color: var(--green); text-shadow: var(--glow-green); }
+.ret-stat-value.warn { color: var(--yellow); text-shadow: none; }
+.ret-stat-value.bad  { color: var(--red);   text-shadow: var(--glow-red); }
+
+.ret-stat-sub {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── chart cards ─────────────────────────────────────────────── */
+.ret-chart-card canvas { width: 100% !important; }
+
+/* ── monte carlo legend ──────────────────────────────────────── */
+.ret-mc-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.ret-mc-dot {
+  display: inline-block;
+  width: 10px; height: 3px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ── scenario table ──────────────────────────────────────────── */
+.ret-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.ret-table th {
+  color: var(--text-dim);
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--panel-border);
+  text-align: left;
+  text-transform: uppercase;
+  background: rgba(0,245,255,0.03);
+}
+
+.ret-table td {
+  padding: 9px 12px;
+  color: var(--text);
+  border-bottom: 1px solid rgba(0,245,255,0.06);
+}
+
+.ret-table tbody tr:hover { background: rgba(0,245,255,0.04); }
+.ret-table tr:last-child td { border-bottom: none; }
+
+.ret-table tr.bear td { color: var(--red); }
+.ret-table tr.bull td { color: var(--green); }
+.ret-table tr.base td { color: var(--yellow); }
