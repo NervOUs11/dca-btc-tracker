@@ -179,7 +179,7 @@
               <div class="form-group">
                 <label class="form-label">FEE (%) <span class="label-hint">Bitkub ≈ 0.25%</span></label>
                 <div class="input-wrap">
-                  <input type="number" id="inputFee" class="form-input" value="0.25" min="0" max="10" step="0.01" />
+                  <input type="number" id="inputFee" class="form-input" placeholder="0.25" min="0" max="10" step="0.01" />
                   <span class="input-suffix">%</span>
                 </div>
               </div>
@@ -249,7 +249,11 @@
         <section class="panel panel--history">
           <div class="panel-header">
             <span class="panel-title">// DCA HISTORY</span>
-            <span class="entry-count" id="historyCount">0 records</span>
+            <div class="history-header-right">
+              <span class="entry-count" id="historyCount">0 records</span>
+              <button class="btn-export-csv" onclick="exportCSV()">⬇ EXPORT CSV</button>
+              <button class="btn-import-csv" onclick="openImportModal()">⬆ IMPORT CSV</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table class="dca-table">
@@ -347,7 +351,7 @@
           <div class="ret-field-group">
             <label class="ret-label" for="ret-withdraw">MONTHLY WITHDRAWAL AT RETIREMENT</label>
             <div class="ret-input-row">
-              <input id="ret-withdraw" class="ret-input" type="number" min="0" value="30000">
+              <input id="ret-withdraw" class="ret-input" type="number" min="0" value="80000">
               <span class="ret-unit">THB</span>
             </div>
           </div>
@@ -554,9 +558,103 @@
     </div>
   </div>
 
+  <!-- CSV Import Modal -->
+  <div class="modal-overlay" id="importModalOverlay">
+    <div class="modal import-modal">
+      <div class="modal-header">
+        <span class="panel-title">// IMPORT CSV</span>
+        <button class="modal-close" onclick="closeImportModal()">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Step 1: Upload -->
+        <div id="importStep1">
+          <div class="import-format-box">
+            <div class="import-format-title">SUPPORTED FORMAT</div>
+            <div class="import-format-row">
+              <span class="import-format-col">วันที่</span>
+              <span class="import-format-col">ชื่อ</span>
+              <span class="import-format-col">ต้นทุน (บาท)</span>
+              <span class="import-format-col">ราคา</span>
+              <span class="import-format-col">ค่าธรรมเนียม</span>
+              <span class="import-format-col">จำนวนหน่วย</span>
+            </div>
+            <div class="import-format-hint">Bitkub trading history export (THB_BTC rows only)</div>
+          </div>
+
+          <div class="import-drop-zone" id="importDropZone"
+               ondragover="event.preventDefault(); this.classList.add('drag-over')"
+               ondragleave="this.classList.remove('drag-over')"
+               ondrop="handleImportDrop(event)">
+            <div class="import-drop-icon">📂</div>
+            <div class="import-drop-text">Drop CSV file here</div>
+            <div class="import-drop-sub">or</div>
+            <label class="btn-import-browse">
+              BROWSE FILE
+              <input type="file" accept=".csv" style="display:none" onchange="handleImportFile(event)">
+            </label>
+          </div>
+        </div>
+
+        <!-- Step 2: Preview -->
+        <div id="importStep2" style="display:none;">
+          <div class="import-summary-row">
+            <div class="import-stat">
+              <div class="import-stat-val" id="importCountValid">0</div>
+              <div class="import-stat-label">ROWS FOUND</div>
+            </div>
+            <div class="import-stat">
+              <div class="import-stat-val warn" id="importCountSkipped">0</div>
+              <div class="import-stat-label">SKIPPED</div>
+            </div>
+            <div class="import-stat">
+              <div class="import-stat-val" id="importCountDupe">0</div>
+              <div class="import-stat-label">DUPLICATES</div>
+            </div>
+          </div>
+
+          <div class="import-preview-wrap">
+            <table class="import-preview-table">
+              <thead>
+                <tr>
+                  <th>DATE</th>
+                  <th>THB SPENT</th>
+                  <th>FEE (THB)</th>
+                  <th>BTC PRICE</th>
+                  <th>BTC BOUGHT</th>
+                  <th>STATUS</th>
+                </tr>
+              </thead>
+              <tbody id="importPreviewBody"></tbody>
+            </table>
+          </div>
+
+          <div class="modal-actions" style="margin-top:1rem;">
+            <button class="btn-cancel" onclick="resetImportModal()">← BACK</button>
+            <button class="btn-submit" id="btnConfirmImport" onclick="confirmImport()">
+              <span class="btn-icon">⬆</span> IMPORT ALL
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3: Done -->
+        <div id="importStep3" style="display:none; text-align:center; padding: 2rem 0;">
+          <div style="font-size:2.5rem; margin-bottom:1rem;">✅</div>
+          <div class="import-done-title" id="importDoneMsg"></div>
+          <div class="import-done-sub">Entries have been added to your DCA history.</div>
+          <button class="btn-submit" style="margin-top:1.5rem; max-width:200px;" onclick="closeImportModal()">
+            DONE
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
   <script src="app.js"></script>
   <script src="retirement.js"></script>
+  <script src="import.js"></script>
   <script>
     // ── Tab switcher ──────────────────────────────────────────────
     let retirementInitialized = false;

@@ -233,8 +233,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7) hue-
 /* ── Table ───────────────────────────────────────────── */
 .table-wrap {
   overflow-x: auto;
-  overflow-y: auto;
-  max-height: 540px;
+  max-height: 582px;
 }
 .dca-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.78rem; }
 .dca-table th {
