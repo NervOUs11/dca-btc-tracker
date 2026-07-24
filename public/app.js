@@ -28,6 +28,13 @@ const cardPnl        = $("cardPnl");
 const historyCount   = $("historyCount");
 const tableBody      = $("tableBody");
 
+// ── Add form (ACTION selector) ────────────────────────────────────────────────
+const actionSelect   = $("actionSelect");
+const addModeTabs    = document.querySelector(".panel--add .mode-tabs");
+const modeFeeFields  = $("modeFeeFields");
+const inputFeeBTC    = $("inputFeeBTC");
+const previewFeeBTC  = $("previewFeeBTC");
+
 // ── Add form (MODE 1: THB) ────────────────────────────────────────────────────
 const tabTHB         = $("tabTHB");
 const tabBTC         = $("tabBTC");
@@ -77,12 +84,19 @@ const editPreviewTHBfromBTC = $("editPreviewTHBfromBTC");
 const editPreviewFee2    = $("editPreviewFee2");
 const editPreviewBTC2    = $("editPreviewBTC2");
 const editNote           = $("editNote");
+const editActionSelect   = $("editActionSelect");
+const editModeTabs       = document.querySelector("#modalOverlay .mode-tabs");
+const editModeFeeFields  = $("editModeFeeFields");
+const editFeeBTC         = $("editFeeBTC");
+const editPreviewFeeBTC  = $("editPreviewFeeBTC");
 const toast              = $("toast");
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentLivePrice = null;
 let inputMode        = "thb";   // "thb" | "btc"
 let editMode         = "thb";
+let inputAction      = "buy";   // "buy" | "sell" | "move_fee"
+let editAction       = "buy";
 let editingId        = null;
 let ws               = null;
 let wsReconnectTimer = null;
@@ -153,13 +167,88 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && ws?.readyState !== WebSocket.OPEN) connectWebSocket();
 });
 
+// ── Actions ───────────────────────────────────────────────────────────────────
+// buy      → BTC เพิ่ม
+// sell     → BTC ลด
+// move_fee → BTC ลด (มีค่าแค่จำนวน BTC)
+const ACTION_LABELS = { buy: "BUY", sell: "SELL", move_fee: "MOVE FEE" };
+const isFeeAction   = a => a === "move_fee";
+
+// Field wording flips with the direction of the trade, so "AMOUNT SPENT"
+// does not sit above a box where you type what you received.
+function applyActionLabels(action, ids) {
+  const sell = action === "sell";
+  const set  = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
+  set(ids.thbAmount, sell ? "AMOUNT RECEIVED (THB)" : "AMOUNT SPENT (THB)");
+  set(ids.netTHB,    sell ? "Gross proceeds"        : "Net THB");
+  set(ids.btcOut,    sell ? "BTC sold"              : "BTC received");
+  set(ids.btcAmount, sell ? "BTC AMOUNT SOLD"       : "BTC AMOUNT RECEIVED");
+  set(ids.thbOut,    sell ? "THB received"          : "THB spent");
+  set(ids.btcOut2,   sell ? "BTC sold"              : "BTC received");
+}
+
+function actionSign(action) { return action === "buy" ? 1 : -1; }
+
+function switchAddAction(action) {
+  inputAction = action;
+  actionSelect.querySelectorAll(".action-opt").forEach(b =>
+    b.classList.toggle("active", b.dataset.action === action)
+  );
+
+  // MOVE FEE only needs a BTC amount — hide the THB/BTC mode tabs
+  const fee = isFeeAction(action);
+  addModeTabs.classList.toggle("hidden", fee);
+  modeFeeFields.classList.toggle("hidden", !fee);
+  modeThbFields.classList.toggle("hidden", fee || inputMode !== "thb");
+  modeBtcFields.classList.toggle("hidden", fee || inputMode !== "btc");
+
+  btnSubmit.innerHTML = fee
+    ? '<span class="btn-icon">−</span> LOG MOVE FEE'
+    : action === "sell"
+      ? '<span class="btn-icon">−</span> LOG SELL ORDER'
+      : '<span class="btn-icon">+</span> LOG DCA ORDER';
+
+  applyActionLabels(action, {
+    thbAmount: "lblThbAmount", netTHB: "lblNetTHB",  btcOut:  "lblBtcOut",
+    btcAmount: "lblBtcAmount", thbOut: "lblThbOut",  btcOut2: "lblBtcOut2",
+  });
+  updateAddPreview();
+}
+
+actionSelect.querySelectorAll(".action-opt").forEach(btn =>
+  btn.addEventListener("click", () => switchAddAction(btn.dataset.action))
+);
+
+function switchEditAction(action) {
+  editAction = action;
+  editActionSelect.querySelectorAll(".action-opt").forEach(b =>
+    b.classList.toggle("active", b.dataset.action === action)
+  );
+
+  const fee = isFeeAction(action);
+  editModeTabs.classList.toggle("hidden", fee);
+  editModeFeeFields.classList.toggle("hidden", !fee);
+  editModeThbFields.classList.toggle("hidden", fee || editMode !== "thb");
+  editModeBtcFields.classList.toggle("hidden", fee || editMode !== "btc");
+
+  applyActionLabels(action, {
+    thbAmount: "editLblThbAmount", netTHB: "editLblNetTHB", btcOut:  "editLblBtcOut",
+    btcAmount: "editLblBtcAmount", thbOut: "editLblThbOut", btcOut2: "editLblBtcOut2",
+  });
+  updateEditPreview();
+}
+
+editActionSelect.querySelectorAll(".action-opt").forEach(btn =>
+  btn.addEventListener("click", () => switchEditAction(btn.dataset.action))
+);
+
 // ── Mode Tabs ─────────────────────────────────────────────────────────────────
 function switchAddMode(mode) {
   inputMode = mode;
   tabTHB.classList.toggle("active", mode === "thb");
   tabBTC.classList.toggle("active", mode === "btc");
-  modeThbFields.classList.toggle("hidden", mode !== "thb");
-  modeBtcFields.classList.toggle("hidden", mode !== "btc");
+  modeThbFields.classList.toggle("hidden", isFeeAction(inputAction) || mode !== "thb");
+  modeBtcFields.classList.toggle("hidden", isFeeAction(inputAction) || mode !== "btc");
   updateAddPreview();
 }
 
@@ -170,8 +259,8 @@ function switchEditMode(mode) {
   editMode = mode;
   editTabTHB.classList.toggle("active", mode === "thb");
   editTabBTC.classList.toggle("active", mode === "btc");
-  editModeThbFields.classList.toggle("hidden", mode !== "thb");
-  editModeBtcFields.classList.toggle("hidden", mode !== "btc");
+  editModeThbFields.classList.toggle("hidden", isFeeAction(editAction) || mode !== "thb");
+  editModeBtcFields.classList.toggle("hidden", isFeeAction(editAction) || mode !== "btc");
   updateEditPreview();
 }
 
@@ -179,39 +268,70 @@ editTabTHB.addEventListener("click", () => switchEditMode("thb"));
 editTabBTC.addEventListener("click", () => switchEditMode("btc"));
 
 // ── Preview calculators ───────────────────────────────────────────────────────
-function calcThbMode(thb, feePct, price) {
-  if (!thb || !price || thb <= 0 || price <= 0) return null;
-  const feeTHB = thb * (feePct || 0) / 100;
-  const netTHB = thb - feeTHB;
-  const rawBtc = netTHB / price;
 
-  // Truncate to 8 decimal places without rounding
-  // Multiplying by 10^8 shifts the decimal, floor() removes the rest, then we shift back.
-  const btc = Math.floor(rawBtc * 1e8) / 1e8;
-  return { feeTHB, netTHB, btc };
+// Truncate to 8 decimals without rounding up.
+// (v * 1e8) is rounded to 4 extra places first: without it, a value that is
+// exact in decimal (0.0003 * 1e8) lands on 29999.999999999996 in binary
+// floating point and floor() would silently drop a satoshi.
+function truncBtc(v) {
+  return Math.floor(+(v * 1e8).toFixed(4)) / 1e8;
 }
 
-function calcBtcMode(btcAmt, price, feeTHB) {
+// THB mode. The meaning of `thb` depends on the direction:
+//   buy  → cash paid out, fee included. BTC bought comes from what is left
+//          after the fee:            btc = (thb − fee) / price
+//   sell → cash actually received, i.e. already net of the fee. The exchange
+//          charges its fee on the gross proceeds, so gross it back up:
+//                                    btc = (thb + fee) / price
+function calcThbMode(thb, feePct, price, action = "buy") {
+  if (!thb || !price || thb <= 0 || price <= 0) return null;
+  const pct = feePct || 0;
+
+  if (action === "sell") {
+    if (pct >= 100) return null;
+    const grossTHB = thb / (1 - pct / 100);
+    const feeTHB   = grossTHB - thb;
+    return { feeTHB, netTHB: thb, grossTHB, btc: truncBtc(grossTHB / price) };
+  }
+
+  const feeTHB = thb * pct / 100;
+  const netTHB = thb - feeTHB;
+  return { feeTHB, netTHB, grossTHB: thb, btc: truncBtc(netTHB / price) };
+}
+
+// BTC mode — buy pays the fee on top, sell has it taken out of the proceeds.
+function calcBtcMode(btcAmt, price, feeTHB, action = "buy") {
   if (!btcAmt || !price || btcAmt <= 0 || price <= 0) return null;
-  const thbSpent = btcAmt * price + (feeTHB || 0);
-  return { thbSpent, btc: btcAmt, feeTHB: feeTHB || 0 };
+  const fee   = feeTHB || 0;
+  const value = btcAmt * price;
+  const thbSpent = action === "sell" ? value - fee : value + fee;
+  return { thbSpent, btc: btcAmt, feeTHB: fee, value };
 }
 
 function updateAddPreview() {
+  if (isFeeAction(inputAction)) {
+    const btc = parseFloat(inputFeeBTC.value);
+    previewFeeBTC.textContent = btc > 0 ? "− ₿ " + fmt.btc(btc) : "—";
+    return;
+  }
+  const sell = inputAction === "sell";
   if (inputMode === "thb") {
     const r = calcThbMode(
       parseFloat(inputTHB.value),
       parseFloat(inputFee.value),
-      parseFloat(inputBTCPrice.value)
+      parseFloat(inputBTCPrice.value),
+      inputAction
     );
-    previewNetTHB.textContent = r ? fmt.thb(r.netTHB) : "—";
+    // on a sell the interesting figure is the gross the fee was taken from
+    previewNetTHB.textContent = r ? fmt.thb(sell ? r.grossTHB : r.netTHB) : "—";
     previewFeeTHB.textContent = r ? fmt.fee(r.feeTHB) : "—";
     previewBTC.textContent    = r ? "₿ " + fmt.btc(r.btc) : "—";
   } else {
     const r = calcBtcMode(
       parseFloat(inputBTCAmount.value),
       parseFloat(inputBTCPrice2.value),
-      parseFloat(inputFee2.value)
+      parseFloat(inputFee2.value),
+      inputAction
     );
     previewTHBfromBTC.textContent = r ? fmt.thb(r.thbSpent) : "—";
     previewFee2.textContent       = r ? fmt.fee(r.feeTHB) : "—";
@@ -220,20 +340,28 @@ function updateAddPreview() {
 }
 
 function updateEditPreview() {
+  if (isFeeAction(editAction)) {
+    const btc = parseFloat(editFeeBTC.value);
+    editPreviewFeeBTC.textContent = btc > 0 ? "− ₿ " + fmt.btc(btc) : "—";
+    return;
+  }
+  const sell = editAction === "sell";
   if (editMode === "thb") {
     const r = calcThbMode(
       parseFloat(editTHB.value),
       parseFloat(editFee.value),
-      parseFloat(editBTCPrice.value)
+      parseFloat(editBTCPrice.value),
+      editAction
     );
-    editPreviewNetTHB.textContent = r ? fmt.thb(r.netTHB) : "—";
+    editPreviewNetTHB.textContent = r ? fmt.thb(sell ? r.grossTHB : r.netTHB) : "—";
     editPreviewFee.textContent    = r ? fmt.fee(r.feeTHB) : "—";
     editPreviewBTC.textContent    = r ? "₿ " + fmt.btc(r.btc) : "—";
   } else {
     const r = calcBtcMode(
       parseFloat(editBTCAmount.value),
       parseFloat(editBTCPrice2.value),
-      parseFloat(editFee2.value)
+      parseFloat(editFee2.value),
+      editAction
     );
     editPreviewTHBfromBTC.textContent = r ? fmt.thb(r.thbSpent) : "—";
     editPreviewFee2.textContent       = r ? fmt.fee(r.feeTHB) : "—";
@@ -242,9 +370,9 @@ function updateEditPreview() {
 }
 
 // Wire up all inputs for live preview
-[inputTHB, inputFee, inputBTCPrice, inputBTCAmount, inputBTCPrice2, inputFee2]
+[inputTHB, inputFee, inputBTCPrice, inputBTCAmount, inputBTCPrice2, inputFee2, inputFeeBTC]
   .forEach(el => el.addEventListener("input", updateAddPreview));
-[editTHB, editFee, editBTCPrice, editBTCAmount, editBTCPrice2, editFee2]
+[editTHB, editFee, editBTCPrice, editBTCAmount, editBTCPrice2, editFee2, editFeeBTC]
   .forEach(el => el.addEventListener("input", updateEditPreview));
 
 // Live price buttons
@@ -265,22 +393,29 @@ btnSubmit.addEventListener("click", async () => {
 
   let payload;
 
-  if (inputMode === "thb") {
+  if (isFeeAction(inputAction)) {
+    const btcAmt = parseFloat(inputFeeBTC.value);
+    if (!btcAmt || btcAmt <= 0) return showToast("กรอกจำนวน BTC", true);
+    payload = { date, action: inputAction, thb_amount: 0, fee_thb: 0, btc_price_thb: 0, btc_bought: btcAmt, input_mode: "btc", note };
+  } else if (inputMode === "thb") {
     const thb    = parseFloat(inputTHB.value);
     const feePct = parseFloat(inputFee.value) || 0;
     const price  = parseFloat(inputBTCPrice.value);
-    if (!thb || thb <= 0)    return showToast("กรอกจำนวน THB", true);
+    if (!thb || thb <= 0)     return showToast("กรอกจำนวน THB", true);
     if (!price || price <= 0) return showToast("กรอกราคา BTC", true);
-    const r = calcThbMode(thb, feePct, price);
-    payload = { date, thb_amount: thb, fee_thb: r.feeTHB, btc_price_thb: price, btc_bought: r.btc, input_mode: "thb", note };
+    if (inputAction === "sell" && feePct >= 100) return showToast("ค่าธรรมเนียมต้องน้อยกว่า 100%", true);
+    const r = calcThbMode(thb, feePct, price, inputAction);
+    payload = { date, action: inputAction, thb_amount: thb, fee_thb: r.feeTHB, btc_price_thb: price, btc_bought: r.btc, input_mode: "thb", note };
   } else {
     const btcAmt = parseFloat(inputBTCAmount.value);
     const price  = parseFloat(inputBTCPrice2.value);
     const feeTHB = parseFloat(inputFee2.value) || 0;
     if (!btcAmt || btcAmt <= 0) return showToast("กรอกจำนวน BTC", true);
     if (!price || price <= 0)   return showToast("กรอกราคา BTC", true);
-    const r = calcBtcMode(btcAmt, price, feeTHB);
-    payload = { date, thb_amount: r.thbSpent, fee_thb: feeTHB, btc_price_thb: price, btc_bought: btcAmt, input_mode: "btc", note };
+    const r = calcBtcMode(btcAmt, price, feeTHB, inputAction);
+    // a sell nets the fee out of the proceeds — it must not swallow them whole
+    if (r.thbSpent <= 0) return showToast("ค่าธรรมเนียมมากกว่ามูลค่าที่ขาย", true);
+    payload = { date, action: inputAction, thb_amount: r.thbSpent, fee_thb: feeTHB, btc_price_thb: price, btc_bought: btcAmt, input_mode: "btc", note };
   }
 
   btnSubmit.textContent = "LOGGING...";
@@ -291,16 +426,16 @@ btnSubmit.addEventListener("click", async () => {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error();
-    showToast("✓ บันทึก DCA เรียบร้อย!");
+    showToast("✓ บันทึกเรียบร้อย!");
     inputTHB.value = ""; inputFee.value = ""; inputBTCPrice.value = "";
     inputBTCAmount.value = ""; inputBTCPrice2.value = ""; inputFee2.value = "";
-    inputNote.value = "";
+    inputFeeBTC.value = ""; inputNote.value = "";
     updateAddPreview(); setDefaultDate(); await refresh();
   } catch {
     showToast("❌ บันทึกไม่สำเร็จ", true);
   } finally {
-    btnSubmit.innerHTML = '<span class="btn-icon">+</span> LOG DCA ORDER';
-    btnSubmit.disabled  = false;
+    btnSubmit.disabled = false;
+    switchAddAction(inputAction);   // restores the action-specific label
   }
 });
 
@@ -329,7 +464,7 @@ async function refreshEntries() {
     const entries = await res.json();
     historyCount.textContent = `${entries.length} record${entries.length !== 1 ? "s" : ""}`;
     if (!entries.length) {
-      tableBody.innerHTML = `<tr class="empty-row"><td colspan="7">
+      tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">
         <div class="empty-state">
           <div class="empty-icon">₿</div>
           <div>NO DCA ENTRIES YET</div>
@@ -337,19 +472,25 @@ async function refreshEntries() {
         </div></td></tr>`;
       return;
     }
-    tableBody.innerHTML = entries.map(e => `
-      <tr data-id="${e.id}">
+    tableBody.innerHTML = entries.map(e => {
+      const action = e.action || "buy";
+      const fee    = isFeeAction(action);
+      const sign   = actionSign(action) > 0 ? "+" : "−";
+      return `
+      <tr data-id="${e.id}" class="row-${action}">
         <td class="td-date">${e.date}</td>
-        <td class="td-thb">${fmt.thb(e.thb_amount)}</td>
-        <td class="td-fee">${fmt.fee(e.fee_thb)}</td>
-        <td class="td-price">${fmt.thb(e.btc_price_thb)}</td>
-        <td class="td-btc">₿ ${fmt.btc(e.btc_bought)}</td>
+        <td><span class="action-badge action-${action}">${ACTION_LABELS[action]}</span></td>
+        <td class="td-thb">${fee ? "—" : fmt.thb(e.thb_amount)}</td>
+        <td class="td-fee">${fee ? "—" : fmt.fee(e.fee_thb)}</td>
+        <td class="td-price">${fee ? "—" : fmt.thb(e.btc_price_thb)}</td>
+        <td class="td-btc td-btc--${actionSign(action) > 0 ? "in" : "out"}">${sign} ${fmt.btc(e.btc_bought)}</td>
         <td class="td-note">${esc(e.note || "—")}</td>
         <td>
           <button class="btn-edit"   data-id="${e.id}">EDIT</button>
           <button class="btn-delete" data-id="${e.id}">DEL</button>
         </td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
     const map = Object.fromEntries(entries.map(e => [e.id, e]));
     tableBody.querySelectorAll(".btn-edit").forEach(btn =>
       btn.addEventListener("click", () => openEditModal(map[+btn.dataset.id]))
@@ -375,18 +516,27 @@ async function deleteEntry(id) {
 function openEditModal(entry) {
   editingId = entry.id;
 
+  const action = entry.action || "buy";
   // Decide which tab to show based on saved input_mode
   const mode = entry.input_mode || "thb";
+  editMode = mode;
   switchEditMode(mode);
+  switchEditAction(action);
 
   editDate.value = entry.date;
   editNote.value = entry.note || "";
 
-  if (mode === "thb") {
+  if (isFeeAction(action)) {
+    editFeeBTC.value = entry.btc_bought;
+  } else if (mode === "thb") {
     editTHB.value      = entry.thb_amount;
     editBTCPrice.value = entry.btc_price_thb;
-    // back-calc fee% from stored fee_thb
-    const feePct = entry.thb_amount > 0 ? ((entry.fee_thb || 0) / entry.thb_amount * 100) : 0;
+    // Back-calc fee% from the stored fee, inverting whichever formula made it:
+    //   buy  fee = thb·p        → p = fee / thb
+    //   sell fee = thb·p/(1−p)  → p = fee / (thb + fee)
+    const fee    = entry.fee_thb || 0;
+    const base   = action === "sell" ? entry.thb_amount + fee : entry.thb_amount;
+    const feePct = base > 0 ? (fee / base * 100) : 0;
     editFee.value = feePct.toFixed(2);
   } else {
     editBTCAmount.value = entry.btc_bought;
@@ -408,20 +558,26 @@ btnSaveEdit.addEventListener("click", async () => {
   if (!date) return showToast("กรุณาเลือกวันที่", true);
 
   let payload;
-  if (editMode === "thb") {
+  if (isFeeAction(editAction)) {
+    const btcAmt = parseFloat(editFeeBTC.value);
+    if (!btcAmt || btcAmt <= 0) return showToast("กรอกจำนวน BTC", true);
+    payload = { date, action: editAction, thb_amount: 0, fee_thb: 0, btc_price_thb: 0, btc_bought: btcAmt, input_mode: "btc", note };
+  } else if (editMode === "thb") {
     const thb    = parseFloat(editTHB.value);
     const feePct = parseFloat(editFee.value) || 0;
     const price  = parseFloat(editBTCPrice.value);
     if (!thb || !price) return showToast("กรอกข้อมูลให้ครบ", true);
-    const r = calcThbMode(thb, feePct, price);
-    payload = { date, thb_amount: thb, fee_thb: r.feeTHB, btc_price_thb: price, btc_bought: r.btc, input_mode: "thb", note };
+    if (editAction === "sell" && feePct >= 100) return showToast("ค่าธรรมเนียมต้องน้อยกว่า 100%", true);
+    const r = calcThbMode(thb, feePct, price, editAction);
+    payload = { date, action: editAction, thb_amount: thb, fee_thb: r.feeTHB, btc_price_thb: price, btc_bought: r.btc, input_mode: "thb", note };
   } else {
     const btcAmt = parseFloat(editBTCAmount.value);
     const price  = parseFloat(editBTCPrice2.value);
     const feeTHB = parseFloat(editFee2.value) || 0;
     if (!btcAmt || !price) return showToast("กรอกข้อมูลให้ครบ", true);
-    const r = calcBtcMode(btcAmt, price, feeTHB);
-    payload = { date, thb_amount: r.thbSpent, fee_thb: feeTHB, btc_price_thb: price, btc_bought: btcAmt, input_mode: "btc", note };
+    const r = calcBtcMode(btcAmt, price, feeTHB, editAction);
+    if (r.thbSpent <= 0) return showToast("ค่าธรรมเนียมมากกว่ามูลค่าที่ขาย", true);
+    payload = { date, action: editAction, thb_amount: r.thbSpent, fee_thb: feeTHB, btc_price_thb: price, btc_bought: btcAmt, input_mode: "btc", note };
   }
 
   btnSaveEdit.textContent = "SAVING...";
@@ -452,6 +608,7 @@ async function refresh() {
 async function init() {
   setDefaultDate();
   switchAddMode("thb");
+  switchAddAction("buy");
   connectWebSocket();
   await refresh();
 }

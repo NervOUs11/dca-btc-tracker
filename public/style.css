@@ -90,6 +90,7 @@ body {
   display: flex; flex-direction: column; gap: 1.5rem;
 }
 
+/* ── Overview: cards left, stack goal right ──────────── */
 /* ── Summary Cards ───────────────────────────────────── */
 .summary-grid {
   display: grid;
@@ -258,6 +259,42 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7) hue-
 }
 .badge-thb { background: rgba(0,245,255,0.1); color: var(--cyan); border: 1px solid var(--cyan-dim); }
 .badge-btc { background: rgba(245,230,66,0.1); color: var(--yellow); border: 1px solid rgba(245,230,66,0.3); }
+
+/* ── Action badges (BUY / SELL / MOVE FEE) ───────────── */
+.action-badge {
+  display: inline-block; padding: 2px 7px; border-radius: 3px;
+  font-family: var(--font-mono); font-size: 0.58rem;
+  letter-spacing: 0.08em; white-space: nowrap;
+}
+.action-buy      { background: rgba(57,255,122,0.12);  color: var(--green);  border: 1px solid rgba(57,255,122,0.3); }
+.action-sell     { background: rgba(255,58,92,0.12);   color: var(--red);    border: 1px solid rgba(255,58,92,0.3); }
+.action-move_fee { background: rgba(245,230,66,0.1);   color: var(--yellow); border: 1px solid rgba(245,230,66,0.3); }
+
+.td-btc--in  { color: var(--cyan);  text-shadow: 0 0 6px rgba(0,245,255,0.4); }
+.td-btc--out { color: var(--red);   text-shadow: 0 0 6px rgba(255,58,92,0.35); }
+
+/* ── Action selector (add / edit forms) ──────────────── */
+.action-select { display: flex; gap: 6px; }
+.action-opt {
+  flex: 1; padding: 7px 4px; cursor: pointer;
+  background: rgba(0,245,255,0.04); border: 1px solid rgba(0,245,255,0.2);
+  border-radius: 4px; color: var(--text-dim);
+  font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em;
+  transition: all 0.2s; white-space: nowrap;
+}
+.action-opt:hover { color: var(--text); border-color: var(--cyan-dim); }
+.action-opt.active[data-action="buy"] {
+  color: var(--green); border-color: var(--green);
+  background: rgba(57,255,122,0.1); text-shadow: var(--glow-green);
+}
+.action-opt.active[data-action="sell"] {
+  color: var(--red); border-color: var(--red);
+  background: rgba(255,58,92,0.1); text-shadow: var(--glow-red);
+}
+.action-opt.active[data-action="move_fee"] {
+  color: var(--yellow); border-color: var(--yellow);
+  background: rgba(245,230,66,0.1);
+}
 
 .btn-edit {
   background: none; border: 1px solid rgba(0,245,255,0.3);

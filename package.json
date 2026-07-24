@@ -7,6 +7,10 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
   },
+  "nodemonConfig": {
+    "ignore": ["data/*"],
+    "watch": ["src", "public"]
+  },
   "dependencies": {
     "axios": "^1.6.0",
     "cors": "^2.8.5",

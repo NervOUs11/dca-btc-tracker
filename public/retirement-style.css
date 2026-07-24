@@ -425,6 +425,33 @@
   color: var(--text-dim);
 }
 
+/* ── action legend ───────────────────────────────────────────── */
+.import-format-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0,245,255,0.08);
+}
+
+.import-format-desc {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-right: 10px;
+}
+
+.import-btc-in  { color: var(--cyan); }
+.import-btc-out { color: var(--red); }
+
+.import-note {
+  color: var(--text-dim);
+  max-width: 110px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* ── drop zone ───────────────────────────────────────────────── */
 .import-drop-zone {
   border: 2px dashed rgba(0,245,255,0.25);

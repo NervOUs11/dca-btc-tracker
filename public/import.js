@@ -1,7 +1,12 @@
 /* ================================================================
    CSV IMPORT — public/import.js
    Parses Bitkub trading history CSV (Thai format) and posts
-   each valid THB_BTC row to POST /api/entries.
+   each valid BTC row to POST /api/entries.
+
+   Supports an ACTION column with three values:
+     Buy       → BTC increases
+     Sell      → BTC decreases
+     Move Fee  → BTC decreases (BTC amount only, no THB / price)
    ================================================================ */
 
 /* ── Thai month name → month number ─────────────────────────── */
@@ -12,62 +17,184 @@ const THAI_MONTHS = {
   'ตุลาคม':   '10', 'พฤศจิกายน':  '11', 'ธันวาคม':    '12',
 };
 
-/* ── Parse Thai date "28/มกราคม/2025" → "2025-01-28" ────────── */
+/* ── Action labels for display ──────────────────────────────── */
+const ACTION_LABEL = { buy: 'BUY', sell: 'SELL', move_fee: 'MOVE FEE' };
+
+/* ── Raw action text → canonical action ─────────────────────── */
+/* move_fee is tested first: its aliases are the most specific.  */
+const ACTION_ALIASES = [
+  ['move_fee', ['move fee', 'movefee', 'move_fee', 'transfer fee', 'withdraw fee',
+                'withdrawal fee', 'network fee', 'ค่าธรรมเนียมการโอน', 'ค่าธรรมเนียมโอน', 'ค่าโอน']],
+  ['buy',      ['buy', 'bought', 'ซื้อ']],
+  ['sell',     ['sell', 'sold', 'ขาย']],
+];
+
+function parseAction(raw) {
+  const v = String(raw || '').trim().toLowerCase();
+  if (!v) return null;
+  for (const [action, aliases] of ACTION_ALIASES) {
+    if (aliases.some(a => v === a || v.includes(a))) return action;
+  }
+  return null;
+}
+
+/* ── Header text → field, in match priority order ───────────── */
+/* THB aliases are tested before BTC so "จำนวนเงิน" is not
+   swallowed by the "จำนวน" prefix of the BTC column.           */
+const HEADER_ALIASES = [
+  ['action', ['action', 'ประเภท', 'ชนิด', 'รายการ', 'side', 'type']],
+  ['date',   ['วันที่', 'วันเวลา', 'date']],
+  ['name',   ['ชื่อ', 'สัญลักษณ์', 'เหรียญ', 'คู่เหรียญ', 'symbol', 'coin', 'pair', 'market']],
+  ['note',   ['หมายเหตุ', 'บันทึก', 'รายละเอียด', 'คำอธิบาย', 'note', 'memo', 'remark', 'comment', 'description']],
+  ['fee',    ['ค่าธรรมเนียม', 'fee']],
+  ['price',  ['ราคา', 'btc price', 'price']],
+  ['thb',    ['ต้นทุน', 'มูลค่า', 'จำนวนเงิน', 'ยอดเงิน', 'thb spent', 'total', 'thb']],
+  ['btc',    ['จำนวนหน่วย', 'จำนวน', 'ปริมาณ', 'btc bought', 'unit', 'volume', 'amount']],
+];
+
+const normHeader = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/* Map a header row to { field: columnIndex }, or null if the
+   line does not look like a header at all.                     */
+function mapHeader(cols) {
+  const map    = {};
+  const taken  = new Set();
+
+  for (const [field, aliases] of HEADER_ALIASES) {
+    for (let i = 0; i < cols.length; i++) {
+      if (taken.has(i)) continue;
+      const h = normHeader(cols[i]);
+      if (!h) continue;
+      if (aliases.some(a => h === a || h.startsWith(a))) {
+        map[field] = i;
+        taken.add(i);
+        break;
+      }
+    }
+  }
+
+  // needs to look convincingly like a header, not a data row
+  return Object.keys(map).length >= 3 ? map : null;
+}
+
+/* Default Bitkub layout when the file has no header row */
+const LEGACY_MAP = { date: 0, name: 1, thb: 2, price: 3, fee: 4, btc: 5 };
+
+/* ── Parse Thai / ISO / numeric date → "YYYY-MM-DD" ─────────── */
 function parseThaiDate(raw) {
   if (!raw) return null;
-  const parts = raw.trim().split('/');
+  const s = String(raw).trim().split(' ')[0];   // drop any time part
+
+  // ISO — 2025-01-28
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return s;
+
+  const parts = s.split('/');
   if (parts.length !== 3) return null;
-  const [day, monthThai, year] = parts;
-  const month = THAI_MONTHS[monthThai.trim()];
+  const [day, monthRaw, year] = parts.map(p => p.trim());
+
+  // Thai month name — 28/มกราคม/2025
+  let month = THAI_MONTHS[monthRaw];
+
+  // Numeric — 28/01/2025
+  if (!month && /^\d{1,2}$/.test(monthRaw)) {
+    const m = parseInt(monthRaw, 10);
+    if (m >= 1 && m <= 12) month = String(m).padStart(2, '0');
+  }
   if (!month) return null;
-  return `${year.trim()}-${month}-${day.trim().padStart(2, '0')}`;
+
+  return `${year}-${month}-${day.padStart(2, '0')}`;
 }
 
 /* ── Strip commas and parse float ────────────────────────────── */
 function parseNum(raw) {
-  if (!raw || raw.trim() === '-' || raw.trim() === '') return 0;
-  return parseFloat(raw.replace(/,/g, '').trim()) || 0;
+  if (!raw || String(raw).trim() === '-' || String(raw).trim() === '') return 0;
+  return parseFloat(String(raw).replace(/,/g, '').trim()) || 0;
 }
 
 /* ── Parse entire CSV text → array of row objects ───────────── */
 function parseCsv(text) {
-  const lines = text.split('\n').map(l => l.trimEnd());
+  const lines   = text.split('\n').map(l => l.trimEnd());
   const valid   = [];
   const skipped = [];
 
-  for (const line of lines) {
-    // skip blank lines and header/summary lines
+  // Locate the header row first, so anything above it (export
+  // titles, summary blocks) is ignored rather than mis-parsed.
+  let colMap     = null;
+  let firstDataI = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const header = mapHeader(splitCsvLine(lines[i]));
+    if (header) { colMap = header; firstDataI = i + 1; break; }
+  }
+
+  for (const line of lines.slice(firstDataI)) {
     if (!line.trim()) continue;
 
     // split by comma — but quoted fields may contain commas
-    const cols = splitCsvLine(line);
-    if (cols.length < 6) continue;
+    let cols = splitCsvLine(line);
 
-    const dateRaw  = cols[0].trim();
-    const name     = cols[1].trim();
-    const thbRaw   = cols[2].trim();
-    const priceRaw = cols[3].trim();
-    const feeRaw   = cols[4].trim();
-    const btcRaw   = cols[5].trim();
+    let map = colMap;
 
-    // only import BTC rows
-    if (name !== 'THB_BTC') continue;
-
-    const date     = parseThaiDate(dateRaw);
-    const thb      = parseNum(thbRaw);
-    const price    = parseNum(priceRaw);
-    const fee      = parseNum(feeRaw);
-    const btcBought = parseNum(btcRaw);
-
-    if (!date || thb <= 0 || price <= 0 || btcBought <= 0) {
-      skipped.push({ raw: line, reason: 'Invalid data' });
-      continue;
+    // No header: fall back to the legacy layout, pulling the
+    // action out of whichever column happens to hold it.
+    let actionFromScan = null;
+    if (!map) {
+      const actionIdx = cols.findIndex(c => parseAction(c));
+      if (actionIdx !== -1) {
+        actionFromScan = parseAction(cols[actionIdx]);
+        cols = cols.filter((_, i) => i !== actionIdx);
+      }
+      map = LEGACY_MAP;
     }
 
-    valid.push({ date, thb_amount: thb, btc_price_thb: price, fee_thb: fee, btc_bought: btcBought });
+    const at      = field => (map[field] !== undefined ? cols[map[field]] : '');
+    const dateRaw = String(at('date') || '').trim();
+    const name    = String(at('name') || '').trim();
+    const note    = String(at('note') || '').trim();
+    const action  = parseAction(at('action')) || actionFromScan || 'buy';
+
+    const date  = parseThaiDate(dateRaw);
+    const thb   = parseNum(at('thb'));
+    const price = parseNum(at('price'));
+    const fee   = parseNum(at('fee'));
+    const btc   = parseNum(at('btc'));
+
+    // Only BTC rows. An empty name column means "no filter available".
+    if (name && !/btc/i.test(name)) continue;
+
+    // Lines with neither a date nor an action are titles / summary
+    // blocks / stray text — ignore them instead of counting as skipped.
+    const looksLikeData = !!date || !!parseAction(at('action')) || !!actionFromScan;
+    if (!looksLikeData) continue;
+
+    const reason = rowError({ date, action, thb, price, btc });
+    if (reason) { skipped.push({ raw: line, reason }); continue; }
+
+    valid.push({
+      date,
+      action,
+      thb_amount:    action === 'move_fee' ? 0 : thb,
+      btc_price_thb: action === 'move_fee' ? 0 : price,
+      fee_thb:       action === 'move_fee' ? 0 : fee,
+      btc_bought:    btc,
+      // taken straight from the file; empty when the file has no note column
+      note,
+    });
   }
 
   return { valid, skipped };
+}
+
+/* ── Per-action validation → error string or null ───────────── */
+function rowError({ date, action, thb, price, btc }) {
+  if (!date)    return 'Invalid date';
+  if (btc <= 0) return 'Missing BTC amount';
+  // a move fee is charged in BTC only — no THB, no price
+  if (action === 'move_fee') return null;
+  if (thb <= 0)   return 'Missing THB amount';
+  if (price <= 0) return 'Missing BTC price';
+  return null;
 }
 
 /* ── CSV line splitter — handles quoted commas ───────────────── */
@@ -104,7 +231,7 @@ function openImportModal() {
   fetch('/api/entries')
     .then(r => r.json())
     .then(entries => {
-      _existingDates = entries.map(e => e.date + '_' + e.btc_bought);
+      _existingDates = entries.map(dupeKey);
     })
     .catch(() => { _existingDates = []; });
 }
@@ -154,6 +281,16 @@ function readCsvFile(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
+/* ── Escape file text before it reaches innerHTML ───────────── */
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* ── Duplicate key — same day, same action, same BTC ────────── */
+function dupeKey(e) {
+  return `${e.date}_${e.action || 'buy'}_${Number(e.btc_bought).toFixed(8)}`;
+}
+
 /* ── Process CSV text → preview ─────────────────────────────── */
 function processCSV(text) {
   const { valid, skipped } = parseCsv(text);
@@ -161,8 +298,7 @@ function processCSV(text) {
   // mark duplicates
   let dupeCount = 0;
   const rows = valid.map(row => {
-    const key   = row.date + '_' + row.btc_bought;
-    const isDupe = _existingDates.includes(key);
+    const isDupe = _existingDates.includes(dupeKey(row));
     if (isDupe) dupeCount++;
     return { ...row, isDupe };
   });
@@ -180,12 +316,16 @@ function processCSV(text) {
   rows.forEach(row => {
     const tr = document.createElement('tr');
     if (row.isDupe) tr.classList.add('import-dupe');
+    const isFee = row.action === 'move_fee';
+    const sign  = row.action === 'buy' ? '+' : '−';
     tr.innerHTML = `
       <td>${row.date}</td>
-      <td>฿${row.thb_amount.toLocaleString('th-TH')}</td>
-      <td>฿${row.fee_thb.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-      <td>฿${row.btc_price_thb.toLocaleString('th-TH')}</td>
-      <td>${row.btc_bought.toFixed(8)}</td>
+      <td><span class="action-badge action-${row.action}">${ACTION_LABEL[row.action]}</span></td>
+      <td>${isFee ? '—' : '฿' + row.thb_amount.toLocaleString('th-TH')}</td>
+      <td>${isFee ? '—' : '฿' + row.fee_thb.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+      <td>${isFee ? '—' : '฿' + row.btc_price_thb.toLocaleString('th-TH')}</td>
+      <td class="import-btc-${row.action === 'buy' ? 'in' : 'out'}">${sign}${row.btc_bought.toFixed(8)}</td>
+      <td class="import-note" title="${escHtml(row.note)}">${escHtml(row.note) || '—'}</td>
       <td>
         ${row.isDupe
           ? '<span class="import-badge import-badge--dupe">DUPLICATE</span>'
@@ -225,12 +365,13 @@ async function confirmImport() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           date:          row.date,
+          action:        row.action,
           thb_amount:    row.thb_amount,
           fee_thb:       row.fee_thb,
           btc_price_thb: row.btc_price_thb,
           btc_bought:    row.btc_bought,
-          input_mode:    'thb',
-          note:          'Imported from CSV',
+          input_mode:    row.action === 'move_fee' ? 'btc' : 'thb',
+          note:          row.note || '',
         }),
       });
       if (res.ok) successCount++;
@@ -283,21 +424,26 @@ async function exportCSV() {
   // summary block
   rows.push([]);
   rows.push(['SUMMARY']);
-  rows.push(['Total BTC',       entries.reduce((s, e) => s + e.btc_bought, 0).toFixed(8), 'BTC']);
-  rows.push(['Total Invested',  summary.totalTHB.toLocaleString('th-TH'),                 'THB']);
+  rows.push(['Net BTC',         (summary.totalBTC || 0).toFixed(8),                       'BTC']);
+  rows.push(['BTC Bought',      (summary.btcBought || 0).toFixed(8),                      'BTC']);
+  rows.push(['BTC Sold',        (summary.btcSold || 0).toFixed(8),                        'BTC']);
+  rows.push(['BTC Move Fees',   (summary.btcMoveFee || 0).toFixed(8),                     'BTC']);
+  rows.push(['Net Invested',    summary.totalTHB.toLocaleString('th-TH'),                 'THB']);
   rows.push(['Avg Buy Price',   Math.round(summary.avgBuyPrice).toLocaleString('th-TH'),  'THB/BTC']);
   rows.push(['Total Entries',   entries.length]);
   rows.push(['Exported At',     new Date().toLocaleString('th-TH')]);
   rows.push([]);
 
   // column headers
-  rows.push(['DATE', 'INPUT MODE', 'THB SPENT', 'FEE (THB)', 'BTC PRICE (THB)', 'BTC BOUGHT', 'NOTE']);
+  rows.push(['DATE', 'ACTION', 'INPUT MODE', 'THB SPENT', 'FEE (THB)', 'BTC PRICE (THB)', 'BTC BOUGHT', 'NOTE']);
 
   // data rows — sorted oldest first
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   for (const e of sorted) {
+    const action = e.action || 'buy';
     rows.push([
       e.date,
+      ACTION_LABEL[action] || 'BUY',
       e.input_mode || 'thb',
       e.thb_amount,
       e.fee_thb || 0,

@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="retirement-style.css" />
   <!-- Chart.js for retirement charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -51,24 +52,24 @@
           <div class="card-sub">BTC</div>
         </div>
         <div class="card">
-          <div class="card-label">TOTAL INVESTED</div>
-          <div class="card-value" id="statTotalTHB">฿0</div>
-          <div class="card-sub">THB</div>
-        </div>
-        <div class="card">
           <div class="card-label">AVG BUY PRICE</div>
           <div class="card-value" id="statAvgPrice">฿0</div>
           <div class="card-sub">THB/BTC</div>
-        </div>
-        <div class="card card--pnl" id="cardPnl">
-          <div class="card-label">UNREALIZED P&amp;L</div>
-          <div class="card-value" id="statPnl">฿0</div>
-          <div class="card-pct" id="statPnlPct">0.00%</div>
         </div>
         <div class="card">
           <div class="card-label">CURRENT VALUE</div>
           <div class="card-value" id="statCurrentVal">฿0</div>
           <div class="card-sub">THB</div>
+        </div>
+        <div class="card">
+          <div class="card-label">TOTAL INVESTED</div>
+          <div class="card-value" id="statTotalTHB">฿0</div>
+          <div class="card-sub">THB</div>
+        </div>
+        <div class="card card--pnl" id="cardPnl">
+          <div class="card-label">UNREALIZED P&amp;L</div>
+          <div class="card-value" id="statPnl">฿0</div>
+          <div class="card-pct" id="statPnlPct">0.00%</div>
         </div>
         <div class="card">
           <div class="card-label">DCA ENTRIES</div>
@@ -141,7 +142,6 @@
               <span class="goal-remaining-sep">·</span>
               <span class="goal-remaining-label" id="goalMonthsLabel"></span>
             </div>
-          </div>
         </div>
       </section>
 
@@ -168,16 +168,41 @@
               <input type="date" id="inputDate" class="form-input" />
             </div>
 
+            <div class="form-group">
+              <label class="form-label">ACTION</label>
+              <div class="action-select" id="actionSelect">
+                <button class="action-opt active" data-action="buy">BUY</button>
+                <button class="action-opt" data-action="sell">SELL</button>
+                <button class="action-opt" data-action="move_fee">MOVE FEE</button>
+              </div>
+            </div>
+
+            <div id="modeFeeFields" class="hidden">
+              <div class="form-group">
+                <label class="form-label">BTC MOVE FEE</label>
+                <div class="input-wrap">
+                  <span class="input-prefix">₿</span>
+                  <input type="number" id="inputFeeBTC" class="form-input" placeholder="0.00001000" min="0" step="0.00000001" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">SUMMARY</label>
+                <div class="calc-summary">
+                  <div class="calc-row calc-row--result"><span>BTC deducted</span><span id="previewFeeBTC">—</span></div>
+                </div>
+              </div>
+            </div>
+
             <div id="modeThbFields">
               <div class="form-group">
-                <label class="form-label">AMOUNT SPENT (THB)</label>
+                <label class="form-label" id="lblThbAmount">AMOUNT SPENT (THB)</label>
                 <div class="input-wrap">
                   <span class="input-prefix">฿</span>
                   <input type="number" id="inputTHB" class="form-input" placeholder="1000" min="0" step="1" />
                 </div>
               </div>
               <div class="form-group">
-                <label class="form-label">FEE (%) <span class="label-hint">Bitkub ≈ 0.25%</span></label>
+                <label class="form-label">FEE (%)</label>
                 <div class="input-wrap">
                   <input type="number" id="inputFee" class="form-input" placeholder="0.25" min="0" max="10" step="0.01" />
                   <span class="input-suffix">%</span>
@@ -194,16 +219,16 @@
               <div class="form-group">
                 <label class="form-label">SUMMARY</label>
                 <div class="calc-summary" id="calcSummaryThb">
-                  <div class="calc-row"><span>Net THB</span><span id="previewNetTHB">—</span></div>
+                  <div class="calc-row"><span id="lblNetTHB">Net THB</span><span id="previewNetTHB">—</span></div>
                   <div class="calc-row"><span>Fee paid</span><span id="previewFeeTHB">—</span></div>
-                  <div class="calc-row calc-row--result"><span>BTC received</span><span id="previewBTC">—</span></div>
+                  <div class="calc-row calc-row--result"><span id="lblBtcOut">BTC received</span><span id="previewBTC">—</span></div>
                 </div>
               </div>
             </div>
 
             <div id="modeBtcFields" class="hidden">
               <div class="form-group">
-                <label class="form-label">BTC AMOUNT RECEIVED</label>
+                <label class="form-label" id="lblBtcAmount">BTC AMOUNT RECEIVED</label>
                 <div class="input-wrap">
                   <span class="input-prefix">₿</span>
                   <input type="number" id="inputBTCAmount" class="form-input" placeholder="0.00100000" min="0" step="0.00000001" />
@@ -227,9 +252,9 @@
               <div class="form-group">
                 <label class="form-label">SUMMARY</label>
                 <div class="calc-summary" id="calcSummaryBtc">
-                  <div class="calc-row"><span>THB spent</span><span id="previewTHBfromBTC">—</span></div>
+                  <div class="calc-row"><span id="lblThbOut">THB spent</span><span id="previewTHBfromBTC">—</span></div>
                   <div class="calc-row"><span>Fee paid</span><span id="previewFee2">—</span></div>
-                  <div class="calc-row calc-row--result"><span>BTC received</span><span id="previewBTC2">—</span></div>
+                  <div class="calc-row calc-row--result"><span id="lblBtcOut2">BTC received</span><span id="previewBTC2">—</span></div>
                 </div>
               </div>
             </div>
@@ -260,10 +285,11 @@
               <thead>
                 <tr>
                   <th>DATE</th>
+                  <th>ACTION</th>
                   <th>THB SPENT</th>
                   <th>FEE</th>
                   <th>BUY PRICE</th>
-                  <th>BTC BOUGHT</th>
+                  <th>BTC</th>
                   <th>NOTE</th>
                   <th></th>
                 </tr>
@@ -483,9 +509,33 @@
           <input type="date" id="editDate" class="form-input" />
         </div>
 
+        <div class="form-group">
+          <label class="form-label">ACTION</label>
+          <div class="action-select" id="editActionSelect">
+            <button class="action-opt active" data-action="buy">BUY</button>
+            <button class="action-opt" data-action="sell">SELL</button>
+            <button class="action-opt" data-action="move_fee">MOVE FEE</button>
+          </div>
+        </div>
+
+        <div id="editModeFeeFields" class="hidden">
+          <div class="form-group">
+            <label class="form-label">BTC MOVE FEE</label>
+            <div class="input-wrap">
+              <span class="input-prefix">₿</span>
+              <input type="number" id="editFeeBTC" class="form-input" min="0" step="0.00000001" />
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="calc-summary">
+              <div class="calc-row calc-row--result"><span>BTC deducted</span><span id="editPreviewFeeBTC">—</span></div>
+            </div>
+          </div>
+        </div>
+
         <div id="editModeThbFields">
           <div class="form-group">
-            <label class="form-label">AMOUNT SPENT (THB)</label>
+            <label class="form-label" id="editLblThbAmount">AMOUNT SPENT (THB)</label>
             <div class="input-wrap">
               <span class="input-prefix">฿</span>
               <input type="number" id="editTHB" class="form-input" min="0" step="1" />
@@ -507,16 +557,16 @@
           </div>
           <div class="form-group">
             <div class="calc-summary">
-              <div class="calc-row"><span>Net THB</span><span id="editPreviewNetTHB">—</span></div>
+              <div class="calc-row"><span id="editLblNetTHB">Net THB</span><span id="editPreviewNetTHB">—</span></div>
               <div class="calc-row"><span>Fee paid</span><span id="editPreviewFee">—</span></div>
-              <div class="calc-row calc-row--result"><span>BTC received</span><span id="editPreviewBTC">—</span></div>
+              <div class="calc-row calc-row--result"><span id="editLblBtcOut">BTC received</span><span id="editPreviewBTC">—</span></div>
             </div>
           </div>
         </div>
 
         <div id="editModeBtcFields" class="hidden">
           <div class="form-group">
-            <label class="form-label">BTC AMOUNT RECEIVED</label>
+            <label class="form-label" id="editLblBtcAmount">BTC AMOUNT RECEIVED</label>
             <div class="input-wrap">
               <span class="input-prefix">₿</span>
               <input type="number" id="editBTCAmount" class="form-input" min="0" step="0.00000001" />
@@ -538,9 +588,9 @@
           </div>
           <div class="form-group">
             <div class="calc-summary">
-              <div class="calc-row"><span>THB spent</span><span id="editPreviewTHBfromBTC">—</span></div>
+              <div class="calc-row"><span id="editLblThbOut">THB spent</span><span id="editPreviewTHBfromBTC">—</span></div>
               <div class="calc-row"><span>Fee paid</span><span id="editPreviewFee2">—</span></div>
-              <div class="calc-row calc-row--result"><span>BTC received</span><span id="editPreviewBTC2">—</span></div>
+              <div class="calc-row calc-row--result"><span id="editLblBtcOut2">BTC received</span><span id="editPreviewBTC2">—</span></div>
             </div>
           </div>
         </div>
@@ -574,12 +624,19 @@
             <div class="import-format-row">
               <span class="import-format-col">วันที่</span>
               <span class="import-format-col">ชื่อ</span>
+              <span class="import-format-col">Action</span>
               <span class="import-format-col">ต้นทุน (บาท)</span>
               <span class="import-format-col">ราคา</span>
               <span class="import-format-col">ค่าธรรมเนียม</span>
               <span class="import-format-col">จำนวนหน่วย</span>
+              <span class="import-format-col">หมายเหตุ</span>
             </div>
-            <div class="import-format-hint">Bitkub trading history export (THB_BTC rows only)</div>
+            <div class="import-format-hint">Bitkub trading history export (BTC rows only) — column order is read from the header row</div>
+            <div class="import-format-actions">
+              <span class="action-badge action-buy">BUY</span> <span class="import-format-desc">BTC เพิ่ม</span>
+              <span class="action-badge action-sell">SELL</span> <span class="import-format-desc">BTC ลด</span>
+              <span class="action-badge action-move_fee">MOVE FEE</span> <span class="import-format-desc">BTC ลด (ใส่แค่จำนวน BTC)</span>
+            </div>
           </div>
 
           <div class="import-drop-zone" id="importDropZone"
@@ -618,10 +675,12 @@
               <thead>
                 <tr>
                   <th>DATE</th>
+                  <th>ACTION</th>
                   <th>THB SPENT</th>
                   <th>FEE (THB)</th>
                   <th>BTC PRICE</th>
-                  <th>BTC BOUGHT</th>
+                  <th>BTC</th>
+                  <th>NOTE</th>
                   <th>STATUS</th>
                 </tr>
               </thead>
